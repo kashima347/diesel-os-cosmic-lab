@@ -74,7 +74,7 @@ in
     options = [ "nofail" "x-gvfs-show" ];
   };
 
-  networking.hostName = "diesel-os-lab";
+  networking.hostName = "diesel-os-cosmic-lab";
   networking.networkmanager.enable = true;
   networking.firewall.enable = true;
 
@@ -97,6 +97,7 @@ in
 
   services.displayManager.gdm.enable = true;
   services.desktopManager.gnome.enable = true;
+  services.desktopManager.cosmic.enable = true;
   services.gnome.gnome-software.enable = true;
 
   services.xserver.xkb = {
@@ -163,7 +164,7 @@ in
   system.nixos.extraOSReleaseArgs = {
     PRETTY_NAME = "Diesel OS Lab - Technology and Gaming Platform";
     FANCY_NAME = dieselPrettyName;
-    DEFAULT_HOSTNAME = "diesel-os-lab";
+    DEFAULT_HOSTNAME = "diesel-os-cosmic-lab";
     LOGO = "diesel-os-lab";
   };
 

@@ -17,6 +17,13 @@
             ./hosts/cosmic-lab/configuration.nix
           ];
         };
+
+        diesel-os-cosmic-lab = nixpkgs.lib.nixosSystem {
+          inherit system;
+          modules = [
+            ./hosts/diesel-os-cosmic-lab/configuration.nix
+          ];
+        };
       };
     };
 }
