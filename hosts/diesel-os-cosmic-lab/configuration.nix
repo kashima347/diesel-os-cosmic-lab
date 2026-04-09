@@ -1,33 +1,97 @@
-{ config, pkgs, lib, inputs, ... }:
+{ config, pkgs, lib, ... }:
 
 let
-  dieselRepo = ../..;
+  systemName = builtins.currentSystem;
+
+  dieselRepo = /mnt/vmstore/projetos/diesel-os-cosmic-lab;
   dieselPrettyName = "Diesel OS Lab — Technology & Gaming Platform";
   dieselLogo = dieselRepo + /assets/branding/logo/diesel-os-lab-icon.png;
-  dieselSplash = dieselRepo + /assets/branding/splash/diesel-os-lab-splash-dark-v2-fixed.png;
-  dieselAvatar = dieselRepo + /assets/branding/avatar/diesel-os-lab-avatar-github-v2.png;
-  dieselWallpaper = dieselRepo + /assets/branding/wallpaper/diesel-os-lab-wallpaper-dark-1080p-v4.png;
-  dieselDconfBackup = ./dconf-backup.ini;
+  dieselSplash = dieselRepo + /assets/branding/splash/splash.png;
+  dieselAvatar = dieselRepo + /assets/branding/avatar/avatar.png;
+  dieselWallpaper = dieselRepo + /assets/branding/wallpaper/MoccaWall.png;
+  dieselDconfBackup = "${toString dieselRepo}/nixos-machines/diesel-os-cosmic-lab/dconf-backup.ini";
+  dieselHasDconfBackup = builtins.pathExists dieselDconfBackup;
+
+  cosmicPkgs = import (builtins.fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz";
+    sha256 = "0p22chwcyksj099af40210i299jvmp33757qmm1nfma872k8pwmw";
+  }) {
+    system = systemName;
+    config = {
+      allowUnfree = true;
+      nvidia.acceptLicense = true;
+    };
+  };
+
+  basePkgs = import (builtins.fetchTarball {
+    url = "https://channels.nixos.org/nixos-25.11/nixexprs.tar.xz";
+    sha256 = "1lcfhmnw6x6pm823s39fra8cy51q16inl6izh510pdd2yyaabf5g";
+  }) {
+    system = systemName;
+    config = {
+      allowUnfree = true;
+      nvidia.acceptLicense = true;
+    };
+    overlays = [
+      (final: prev: {
+        cosmic-applets = cosmicPkgs.cosmic-applets;
+        cosmic-applibrary = cosmicPkgs.cosmic-applibrary;
+        cosmic-bg = cosmicPkgs.cosmic-bg;
+        cosmic-comp = cosmicPkgs.cosmic-comp;
+        cosmic-edit = cosmicPkgs.cosmic-edit;
+        cosmic-files = cosmicPkgs.cosmic-files;
+        cosmic-greeter = cosmicPkgs.cosmic-greeter;
+        cosmic-icons = cosmicPkgs.cosmic-icons;
+        cosmic-idle = cosmicPkgs.cosmic-idle;
+        cosmic-initial-setup = cosmicPkgs.cosmic-initial-setup;
+        cosmic-launcher = cosmicPkgs.cosmic-launcher;
+        cosmic-notifications = cosmicPkgs.cosmic-notifications;
+        cosmic-osd = cosmicPkgs.cosmic-osd;
+        cosmic-panel = cosmicPkgs.cosmic-panel;
+        cosmic-player = cosmicPkgs.cosmic-player;
+        cosmic-randr = cosmicPkgs.cosmic-randr;
+        cosmic-screenshot = cosmicPkgs.cosmic-screenshot;
+        cosmic-session = cosmicPkgs.cosmic-session;
+        cosmic-settings = cosmicPkgs.cosmic-settings;
+        cosmic-settings-daemon = cosmicPkgs.cosmic-settings-daemon;
+        cosmic-store = cosmicPkgs.cosmic-store;
+        cosmic-term = cosmicPkgs.cosmic-term;
+        cosmic-wallpapers = cosmicPkgs.cosmic-wallpapers;
+        cosmic-workspaces-epoch = cosmicPkgs.cosmic-workspaces-epoch;
+        pop-launcher = cosmicPkgs.pop-launcher;
+        xdg-desktop-portal-cosmic = cosmicPkgs.xdg-desktop-portal-cosmic;
+      })
+
+      (final: prev: {
+        libfprint = prev.libfprint.overrideAttrs (oldAttrs: {
+          version = "git";
+          src = final.fetchFromGitHub {
+            owner = "deftdawg";
+            repo = "libfprint-CS9711";
+            rev = "56bf490f8ea2ab9049f410b9dfe78b33d59fd2c4";
+            sha256 = "sha256-PVr/Mi3m0P1bojVYriubmpA8QC5oayV5RtHbyXyHPC0=";
+          };
+          nativeBuildInputs = oldAttrs.nativeBuildInputs ++ [
+            final.opencv
+            final.cmake
+            final.doctest
+          ];
+        });
+      })
+    ];
+  };
 
   zen61813Pkgs = import (builtins.fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/d215436dc2f9d64f63a2713fb8b67df85ba9f73e.tar.gz";
   }) {
-    system = pkgs.stdenv.hostPlatform.system;
+    system = systemName;
     config = {
       allowUnfree = true;
       nvidia.acceptLicense = true;
     };
   };
 
-  cosmicPkgs = import inputs.nixpkgs-unstable {
-    localSystem = pkgs.stdenv.hostPlatform;
-    config = {
-      allowUnfree = true;
-      nvidia.acceptLicense = true;
-    };
-  };
-
-  dieselBrandingAssets = pkgs.runCommandLocal "diesel-os-lab-branding-assets" { } ''
+  dieselBrandingAssets = basePkgs.runCommandLocal "diesel-os-lab-branding-assets" { } ''
     mkdir -p $out/share/diesel-os-lab
     mkdir -p $out/share/icons/hicolor/512x512/apps
 
@@ -39,12 +103,14 @@ let
     cp ${dieselLogo} $out/share/icons/hicolor/512x512/apps/diesel-os-lab.png
   '';
 
-  freefilesyncDonation = pkgs.callPackage ../../pkgs/freefilesync-donation { };
+  freefilesyncDonation = basePkgs.callPackage /home/hal/freefilesync-donation { };
 in
 {
   imports = [
     ./hardware-configuration.nix
   ];
+
+  nixpkgs.pkgs = basePkgs;
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -56,7 +122,7 @@ in
   boot.plymouth = {
     enable = true;
     theme = "spinner";
-    logo = dieselLogo;
+    logo = dieselSplash;
   };
 
   boot.consoleLogLevel = 3;
@@ -110,7 +176,7 @@ in
 
   services.displayManager.gdm.enable = false;
   services.displayManager.cosmic-greeter.enable = true;
-  services.displayManager.cosmic-greeter.package = pkgs.cosmic-greeter;
+  services.displayManager.cosmic-greeter.package = basePkgs.cosmic-greeter;
 
   services.desktopManager.gnome.enable = true;
   services.desktopManager.cosmic.enable = true;
@@ -153,68 +219,6 @@ in
     };
   };
 
-  nixpkgs.config = {
-    allowUnfree = true;
-    nvidia.acceptLicense = true;
-  };
-
-  nixpkgs.overlays = [
-    (final: prev: {
-      cosmic-applets = cosmicPkgs.cosmic-applets;
-      cosmic-applibrary = cosmicPkgs.cosmic-applibrary;
-      cosmic-bg = cosmicPkgs.cosmic-bg;
-      cosmic-comp = cosmicPkgs.cosmic-comp;
-      cosmic-edit = cosmicPkgs.cosmic-edit;
-      cosmic-files = cosmicPkgs.cosmic-files;
-      cosmic-greeter = cosmicPkgs.cosmic-greeter;
-      cosmic-icons = cosmicPkgs.cosmic-icons;
-      cosmic-idle = cosmicPkgs.cosmic-idle;
-      cosmic-initial-setup = cosmicPkgs.cosmic-initial-setup;
-      cosmic-launcher = cosmicPkgs.cosmic-launcher;
-      cosmic-notifications = cosmicPkgs.cosmic-notifications;
-      cosmic-osd = cosmicPkgs.cosmic-osd;
-      cosmic-panel = cosmicPkgs.cosmic-panel;
-      cosmic-player = cosmicPkgs.cosmic-player;
-      cosmic-randr = cosmicPkgs.cosmic-randr;
-      cosmic-screenshot = cosmicPkgs.cosmic-screenshot;
-      cosmic-session = cosmicPkgs.cosmic-session;
-      cosmic-settings = cosmicPkgs.cosmic-settings;
-      cosmic-settings-daemon = cosmicPkgs.cosmic-settings-daemon;
-      cosmic-store = cosmicPkgs.cosmic-store;
-      cosmic-term = cosmicPkgs.cosmic-term;
-      cosmic-wallpapers = cosmicPkgs.cosmic-wallpapers;
-      cosmic-workspaces-epoch = cosmicPkgs.cosmic-workspaces-epoch;
-      pop-launcher = cosmicPkgs.pop-launcher;
-      xdg-desktop-portal-cosmic = cosmicPkgs.xdg-desktop-portal-cosmic;
-    })
-
-    (final: prev: {
-      libfprint = prev.libfprint.overrideAttrs (oldAttrs: {
-        version = "git";
-        src = final.fetchFromGitHub {
-          owner = "deftdawg";
-          repo = "libfprint-CS9711";
-          rev = "56bf490f8ea2ab9049f410b9dfe78b33d59fd2c4";
-          sha256 = "sha256-PVr/Mi3m0P1bojVYriubmpA8QC5oayV5RtHbyXyHPC0=";
-        };
-        nativeBuildInputs = oldAttrs.nativeBuildInputs ++ [
-          final.opencv
-          final.cmake
-          final.doctest
-        ];
-      });
-    })
-  ];
-
-  system.nixos.distroName = "Diesel OS Lab";
-  system.nixos.vendorName = "Diesel OS Lab";
-  system.nixos.extraOSReleaseArgs = {
-    PRETTY_NAME = "Diesel OS Lab - Technology and Gaming Platform";
-    FANCY_NAME = dieselPrettyName;
-    DEFAULT_HOSTNAME = "diesel-os-cosmic-lab";
-    LOGO = "diesel-os-lab";
-  };
-
   programs.steam = {
     enable = true;
     remotePlay.openFirewall = true;
@@ -238,7 +242,7 @@ in
     wantedBy = [ "multi-user.target" ];
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
-    path = [ pkgs.flatpak ];
+    path = [ basePkgs.flatpak ];
     serviceConfig = {
       Type = "oneshot";
     };
@@ -246,6 +250,16 @@ in
       flatpak remote-add --if-not-exists --system flathub https://dl.flathub.org/repo/flathub.flatpakrepo
     '';
   };
+
+  environment.etc."xdg/autostart/ibus-daemon.desktop".text = ''
+    [Desktop Entry]
+    Name=IBus
+    Type=Application
+    Exec=ibus-daemon --daemonize --xim
+    NotShowIn=GNOME;
+    Hidden=true
+    X-GNOME-Autostart-enabled=false
+  '';
 
   virtualisation.libvirtd = {
     enable = true;
@@ -258,7 +272,7 @@ in
 
   programs.nix-ld = {
     enable = true;
-    libraries = with pkgs; [
+    libraries = with basePkgs; [
       stdenv.cc.cc
       zlib
       openssl
@@ -404,11 +418,31 @@ EOF
     chmod 644 /var/lib/AccountsService/users/hal
   '';
 
-  systemd.user.services.diesel-dconf-restore = {
+  system.activationScripts.dieselHalDisableIbusAutostart = ''
+    mkdir -p /home/hal/.config/autostart
+    mkdir -p /home/hal/.config/systemd/user
+
+    cat > /home/hal/.config/autostart/ibus-daemon.desktop <<'EOF'
+[Desktop Entry]
+Name=IBus
+Type=Application
+Exec=ibus-daemon --daemonize --xim
+NotShowIn=GNOME;
+Hidden=true
+X-GNOME-Autostart-enabled=false
+EOF
+
+    ln -sfn /dev/null '/home/hal/.config/systemd/user/app-ibus\x2ddaemon@autostart.service'
+
+    chown -R hal:users /home/hal/.config/autostart /home/hal/.config/systemd/user
+    chown -h hal:users '/home/hal/.config/systemd/user/app-ibus\x2ddaemon@autostart.service'
+  '';
+
+  systemd.user.services.diesel-dconf-restore = lib.mkIf dieselHasDconfBackup {
     description = "Diesel OS Lab first login dconf restore";
     wantedBy = [ "graphical-session.target" ];
     after = [ "graphical-session-pre.target" ];
-    path = [ pkgs.dconf pkgs.coreutils pkgs.bash ];
+    path = [ basePkgs.dconf basePkgs.coreutils basePkgs.bash ];
     serviceConfig = {
       Type = "oneshot";
     };
@@ -420,12 +454,12 @@ EOF
       fi
 
       mkdir -p "$(dirname "$stamp")"
-      dconf load / < ${dieselDconfBackup}
+      dconf load / < "${dieselDconfBackup}"
       touch "$stamp"
     '';
   };
 
-  environment.systemPackages = with pkgs; [
+  environment.systemPackages = with basePkgs; [
     git
     curl
     wget
