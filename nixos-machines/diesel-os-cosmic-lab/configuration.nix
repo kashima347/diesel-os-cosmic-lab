@@ -1,6 +1,8 @@
 { config, pkgs, lib, ... }:
 
 let
+  systemName = builtins.currentSystem;
+
   dieselRepo = /mnt/vmstore/projetos/diesel-os-cosmic-lab;
   dieselPrettyName = "Diesel OS Lab — Technology & Gaming Platform";
   dieselLogo = dieselRepo + /assets/branding/logo/diesel-os-lab-icon.png;
@@ -10,25 +12,86 @@ let
   dieselDconfBackup = "${toString dieselRepo}/nixos-machines/diesel-os-cosmic-lab/dconf-backup.ini";
   dieselHasDconfBackup = builtins.pathExists dieselDconfBackup;
 
+  cosmicPkgs = import (builtins.fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz";
+    sha256 = "0p22chwcyksj099af40210i299jvmp33757qmm1nfma872k8pwmw";
+  }) {
+    system = systemName;
+    config = {
+      allowUnfree = true;
+      nvidia.acceptLicense = true;
+    };
+  };
+
+  basePkgs = import (builtins.fetchTarball {
+    url = "https://channels.nixos.org/nixos-25.11/nixexprs.tar.xz";
+    sha256 = "1lcfhmnw6x6pm823s39fra8cy51q16inl6izh510pdd2yyaabf5g";
+  }) {
+    system = systemName;
+    config = {
+      allowUnfree = true;
+      nvidia.acceptLicense = true;
+    };
+    overlays = [
+      (final: prev: {
+        cosmic-applets = cosmicPkgs.cosmic-applets;
+        cosmic-applibrary = cosmicPkgs.cosmic-applibrary;
+        cosmic-bg = cosmicPkgs.cosmic-bg;
+        cosmic-comp = cosmicPkgs.cosmic-comp;
+        cosmic-edit = cosmicPkgs.cosmic-edit;
+        cosmic-files = cosmicPkgs.cosmic-files;
+        cosmic-greeter = cosmicPkgs.cosmic-greeter;
+        cosmic-icons = cosmicPkgs.cosmic-icons;
+        cosmic-idle = cosmicPkgs.cosmic-idle;
+        cosmic-initial-setup = cosmicPkgs.cosmic-initial-setup;
+        cosmic-launcher = cosmicPkgs.cosmic-launcher;
+        cosmic-notifications = cosmicPkgs.cosmic-notifications;
+        cosmic-osd = cosmicPkgs.cosmic-osd;
+        cosmic-panel = cosmicPkgs.cosmic-panel;
+        cosmic-player = cosmicPkgs.cosmic-player;
+        cosmic-randr = cosmicPkgs.cosmic-randr;
+        cosmic-screenshot = cosmicPkgs.cosmic-screenshot;
+        cosmic-session = cosmicPkgs.cosmic-session;
+        cosmic-settings = cosmicPkgs.cosmic-settings;
+        cosmic-settings-daemon = cosmicPkgs.cosmic-settings-daemon;
+        cosmic-store = cosmicPkgs.cosmic-store;
+        cosmic-term = cosmicPkgs.cosmic-term;
+        cosmic-wallpapers = cosmicPkgs.cosmic-wallpapers;
+        cosmic-workspaces-epoch = cosmicPkgs.cosmic-workspaces-epoch;
+        pop-launcher = cosmicPkgs.pop-launcher;
+        xdg-desktop-portal-cosmic = cosmicPkgs.xdg-desktop-portal-cosmic;
+      })
+
+      (final: prev: {
+        libfprint = prev.libfprint.overrideAttrs (oldAttrs: {
+          version = "git";
+          src = final.fetchFromGitHub {
+            owner = "deftdawg";
+            repo = "libfprint-CS9711";
+            rev = "56bf490f8ea2ab9049f410b9dfe78b33d59fd2c4";
+            sha256 = "sha256-PVr/Mi3m0P1bojVYriubmpA8QC5oayV5RtHbyXyHPC0=";
+          };
+          nativeBuildInputs = oldAttrs.nativeBuildInputs ++ [
+            final.opencv
+            final.cmake
+            final.doctest
+          ];
+        });
+      })
+    ];
+  };
+
   zen61813Pkgs = import (builtins.fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/d215436dc2f9d64f63a2713fb8b67df85ba9f73e.tar.gz";
   }) {
-    system = pkgs.stdenv.hostPlatform.system;
+    system = systemName;
     config = {
       allowUnfree = true;
       nvidia.acceptLicense = true;
     };
   };
 
-  cosmicPkgs = import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz") {
-    system = pkgs.stdenv.hostPlatform.system;
-    config = {
-      allowUnfree = true;
-      nvidia.acceptLicense = true;
-    };
-  };
-
-  dieselBrandingAssets = pkgs.runCommandLocal "diesel-os-lab-branding-assets" { } ''
+  dieselBrandingAssets = basePkgs.runCommandLocal "diesel-os-lab-branding-assets" { } ''
     mkdir -p $out/share/diesel-os-lab
     mkdir -p $out/share/icons/hicolor/512x512/apps
 
@@ -40,12 +103,14 @@ let
     cp ${dieselLogo} $out/share/icons/hicolor/512x512/apps/diesel-os-lab.png
   '';
 
-  freefilesyncDonation = pkgs.callPackage /home/hal/freefilesync-donation { };
+  freefilesyncDonation = basePkgs.callPackage /home/hal/freefilesync-donation { };
 in
 {
   imports = [
     ./hardware-configuration.nix
   ];
+
+  nixpkgs.pkgs = basePkgs;
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -111,7 +176,7 @@ in
 
   services.displayManager.gdm.enable = false;
   services.displayManager.cosmic-greeter.enable = true;
-  services.displayManager.cosmic-greeter.package = pkgs.cosmic-greeter;
+  services.displayManager.cosmic-greeter.package = basePkgs.cosmic-greeter;
 
   services.desktopManager.gnome.enable = true;
   services.desktopManager.cosmic.enable = true;
@@ -154,68 +219,6 @@ in
     };
   };
 
-  nixpkgs.config = {
-    allowUnfree = true;
-    nvidia.acceptLicense = true;
-  };
-
-  nixpkgs.overlays = [
-    (final: prev: {
-      cosmic-applets = cosmicPkgs.cosmic-applets;
-      cosmic-applibrary = cosmicPkgs.cosmic-applibrary;
-      cosmic-bg = cosmicPkgs.cosmic-bg;
-      cosmic-comp = cosmicPkgs.cosmic-comp;
-      cosmic-edit = cosmicPkgs.cosmic-edit;
-      cosmic-files = cosmicPkgs.cosmic-files;
-      cosmic-greeter = cosmicPkgs.cosmic-greeter;
-      cosmic-icons = cosmicPkgs.cosmic-icons;
-      cosmic-idle = cosmicPkgs.cosmic-idle;
-      cosmic-initial-setup = cosmicPkgs.cosmic-initial-setup;
-      cosmic-launcher = cosmicPkgs.cosmic-launcher;
-      cosmic-notifications = cosmicPkgs.cosmic-notifications;
-      cosmic-osd = cosmicPkgs.cosmic-osd;
-      cosmic-panel = cosmicPkgs.cosmic-panel;
-      cosmic-player = cosmicPkgs.cosmic-player;
-      cosmic-randr = cosmicPkgs.cosmic-randr;
-      cosmic-screenshot = cosmicPkgs.cosmic-screenshot;
-      cosmic-session = cosmicPkgs.cosmic-session;
-      cosmic-settings = cosmicPkgs.cosmic-settings;
-      cosmic-settings-daemon = cosmicPkgs.cosmic-settings-daemon;
-      cosmic-store = cosmicPkgs.cosmic-store;
-      cosmic-term = cosmicPkgs.cosmic-term;
-      cosmic-wallpapers = cosmicPkgs.cosmic-wallpapers;
-      cosmic-workspaces-epoch = cosmicPkgs.cosmic-workspaces-epoch;
-      pop-launcher = cosmicPkgs.pop-launcher;
-      xdg-desktop-portal-cosmic = cosmicPkgs.xdg-desktop-portal-cosmic;
-    })
-
-    (final: prev: {
-      libfprint = prev.libfprint.overrideAttrs (oldAttrs: {
-        version = "git";
-        src = final.fetchFromGitHub {
-          owner = "deftdawg";
-          repo = "libfprint-CS9711";
-          rev = "56bf490f8ea2ab9049f410b9dfe78b33d59fd2c4";
-          sha256 = "sha256-PVr/Mi3m0P1bojVYriubmpA8QC5oayV5RtHbyXyHPC0=";
-        };
-        nativeBuildInputs = oldAttrs.nativeBuildInputs ++ [
-          final.opencv
-          final.cmake
-          final.doctest
-        ];
-      });
-    })
-  ];
-
-  system.nixos.distroName = "Diesel OS Lab";
-  system.nixos.vendorName = "Diesel OS Lab";
-  system.nixos.extraOSReleaseArgs = {
-    PRETTY_NAME = "Diesel OS Lab - Technology and Gaming Platform";
-    FANCY_NAME = dieselPrettyName;
-    DEFAULT_HOSTNAME = "diesel-os-cosmic-lab";
-    LOGO = "diesel-os-lab";
-  };
-
   programs.steam = {
     enable = true;
     remotePlay.openFirewall = true;
@@ -239,7 +242,7 @@ in
     wantedBy = [ "multi-user.target" ];
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
-    path = [ pkgs.flatpak ];
+    path = [ basePkgs.flatpak ];
     serviceConfig = {
       Type = "oneshot";
     };
@@ -258,6 +261,28 @@ in
     X-GNOME-Autostart-enabled=false
   '';
 
+  environment.etc."os-release".source = lib.mkForce (basePkgs.writeText "diesel-os-release" ''
+    ANSI_COLOR="0;38;2;126;186;228"
+    BUG_REPORT_URL="https://github.com/NixOS/nixpkgs/issues"
+    BUILD_ID="${config.system.nixos.version}"
+    CPE_NAME="cpe:/o:nixos:nixos:${config.system.nixos.release}"
+    DEFAULT_HOSTNAME=nixos
+    DOCUMENTATION_URL="https://nixos.org/learn.html"
+    HOME_URL="https://nixos.org/"
+    ID=nixos
+    ID_LIKE=""
+    IMAGE_ID=""
+    IMAGE_VERSION=""
+    LOGO="diesel-os-lab"
+    NAME="Diesel OS Lab"
+    PRETTY_NAME="${dieselPrettyName}"
+    SUPPORT_URL="https://nixos.org/community.html"
+    VENDOR_NAME="Diesel OS Lab"
+    VENDOR_URL="https://nixos.org/"
+    VERSION="${config.system.nixos.release}"
+    VERSION_ID="${config.system.nixos.release}"
+  '');
+
   virtualisation.libvirtd = {
     enable = true;
     qemu.swtpm.enable = true;
@@ -269,7 +294,7 @@ in
 
   programs.nix-ld = {
     enable = true;
-    libraries = with pkgs; [
+    libraries = with basePkgs; [
       stdenv.cc.cc
       zlib
       openssl
@@ -439,7 +464,7 @@ EOF
     description = "Diesel OS Lab first login dconf restore";
     wantedBy = [ "graphical-session.target" ];
     after = [ "graphical-session-pre.target" ];
-    path = [ pkgs.dconf pkgs.coreutils pkgs.bash ];
+    path = [ basePkgs.dconf basePkgs.coreutils basePkgs.bash ];
     serviceConfig = {
       Type = "oneshot";
     };
@@ -456,7 +481,7 @@ EOF
     '';
   };
 
-  environment.systemPackages = with pkgs; [
+  environment.systemPackages = with basePkgs; [
     git
     curl
     wget
@@ -471,11 +496,14 @@ EOF
 
     gnome-tweaks
     gnome-software
+    mission-center
+    easyeffects
 
     brave
     bitwarden-desktop
     onlyoffice-desktopeditors
     freefilesyncDonation
+    bottles
 
     mangohud
     goverlay

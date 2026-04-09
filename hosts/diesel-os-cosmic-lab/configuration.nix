@@ -261,6 +261,28 @@ in
     X-GNOME-Autostart-enabled=false
   '';
 
+  environment.etc."os-release".source = lib.mkForce (basePkgs.writeText "diesel-os-release" ''
+    ANSI_COLOR="0;38;2;126;186;228"
+    BUG_REPORT_URL="https://github.com/NixOS/nixpkgs/issues"
+    BUILD_ID="${config.system.nixos.version}"
+    CPE_NAME="cpe:/o:nixos:nixos:${config.system.nixos.release}"
+    DEFAULT_HOSTNAME=nixos
+    DOCUMENTATION_URL="https://nixos.org/learn.html"
+    HOME_URL="https://nixos.org/"
+    ID=nixos
+    ID_LIKE=""
+    IMAGE_ID=""
+    IMAGE_VERSION=""
+    LOGO="diesel-os-lab"
+    NAME="Diesel OS Lab"
+    PRETTY_NAME="${dieselPrettyName}"
+    SUPPORT_URL="https://nixos.org/community.html"
+    VENDOR_NAME="Diesel OS Lab"
+    VENDOR_URL="https://nixos.org/"
+    VERSION="${config.system.nixos.release}"
+    VERSION_ID="${config.system.nixos.release}"
+  '');
+
   virtualisation.libvirtd = {
     enable = true;
     qemu.swtpm.enable = true;
@@ -474,11 +496,14 @@ EOF
 
     gnome-tweaks
     gnome-software
+    mission-center
+    easyeffects
 
     brave
     bitwarden-desktop
     onlyoffice-desktopeditors
     freefilesyncDonation
+    bottles
 
     mangohud
     goverlay
