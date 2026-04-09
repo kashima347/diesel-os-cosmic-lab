@@ -6,12 +6,25 @@ let
   dieselLogo = dieselRepo + /assets/branding/logo/diesel-os-lab-icon.png;
   dieselSplash = dieselRepo + /assets/branding/splash/diesel-os-lab-splash-dark-v2-fixed.png;
   dieselAvatar = dieselRepo + /assets/branding/avatar/diesel-os-lab-avatar-github-v2.png;
-  dieselWallpaper = dieselRepo + /assets/branding/wallpaper/diesel-os-lab-wallpaper-dark-1080p-v3.jpg;
+  dieselWallpaper = dieselRepo + /assets/branding/wallpaper/diesel-os-lab-wallpaper-dark-1080p-v4.png;
   dieselDconfBackup = ./dconf-backup.ini;
 
-  unstablePkgs = import inputs.nixpkgs-unstable {
+  zen61813Pkgs = import (builtins.fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/archive/d215436dc2f9d64f63a2713fb8b67df85ba9f73e.tar.gz";
+  }) {
+    system = pkgs.stdenv.hostPlatform.system;
+    config = {
+      allowUnfree = true;
+      nvidia.acceptLicense = true;
+    };
+  };
+
+  cosmicPkgs = import inputs.nixpkgs-unstable {
     localSystem = pkgs.stdenv.hostPlatform;
-    config.allowUnfree = true;
+    config = {
+      allowUnfree = true;
+      nvidia.acceptLicense = true;
+    };
   };
 
   dieselBrandingAssets = pkgs.runCommandLocal "diesel-os-lab-branding-assets" { } ''
@@ -25,6 +38,8 @@ let
 
     cp ${dieselLogo} $out/share/icons/hicolor/512x512/apps/diesel-os-lab.png
   '';
+
+  freefilesyncDonation = pkgs.callPackage ../../pkgs/freefilesync-donation { };
 in
 {
   imports = [
@@ -33,7 +48,7 @@ in
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
-  boot.loader.timeout = 0;
+  boot.loader.timeout = 5;
 
   boot.supportedFilesystems = [ "f2fs" "vfat" "xfs" ];
   boot.initrd.supportedFilesystems = [ "f2fs" "vfat" "xfs" ];
@@ -47,7 +62,7 @@ in
   boot.consoleLogLevel = 3;
   boot.initrd.verbose = false;
 
-  boot.kernelPackages = unstablePkgs.linuxPackages_zen;
+  boot.kernelPackages = zen61813Pkgs.linuxPackages_zen;
 
   boot.kernelParams = [
     "quiet"
@@ -93,7 +108,10 @@ in
 
   services.xserver.enable = true;
 
+  services.displayManager.gdm.enable = false;
   services.displayManager.cosmic-greeter.enable = true;
+  services.displayManager.cosmic-greeter.package = pkgs.cosmic-greeter;
+
   services.desktopManager.gnome.enable = true;
   services.desktopManager.cosmic.enable = true;
   services.gnome.gnome-software.enable = true;
@@ -123,22 +141,53 @@ in
 
   hardware.nvidia = {
     modesetting.enable = true;
-    open = true;
-    nvidiaSettings = true;
-    powerManagement.enable = true;
+    open = false;
+    gsp.enable = false;
+    nvidiaSettings = false;
+    powerManagement.enable = false;
     package = config.boot.kernelPackages.nvidiaPackages.mkDriver {
-      version = "595.58.03";
-      sha256_64bit = "sha256-jA1Plnt5MsSrVxQnKu6BAzkrCnAskq+lVRdtNiBYKfk=";
-      sha256_aarch64 = "sha256-hzzIKY1Te8QkCBWR+H5k1FB/HK1UgGhai6cl3wEaPT8=";
-      openSha256 = "sha256-6LvJyT0cMXGS290Dh8hd9rc+nYZqBzDIlItOFk8S4n8=";
-      settingsSha256 = "sha256-2vLF5Evl2D6tRQJo0uUyY3tpWqjvJQ0/Rpxan3NOD3c=";
-      persistencedSha256 = "sha256-AtjM/ml/ngZil8DMYNH+P111ohuk9mWw5t4z7CHjPWw=";
+      version = "590.48.01";
+      sha256_64bit = "sha256-ueL4BpN4FDHMh/TNKRCeEz3Oy1ClDWto1LO/LWlr1ok=";
+      useSettings = false;
+      usePersistenced = false;
     };
   };
 
-  nixpkgs.config.allowUnfree = true;
+  nixpkgs.config = {
+    allowUnfree = true;
+    nvidia.acceptLicense = true;
+  };
 
   nixpkgs.overlays = [
+    (final: prev: {
+      cosmic-applets = cosmicPkgs.cosmic-applets;
+      cosmic-applibrary = cosmicPkgs.cosmic-applibrary;
+      cosmic-bg = cosmicPkgs.cosmic-bg;
+      cosmic-comp = cosmicPkgs.cosmic-comp;
+      cosmic-edit = cosmicPkgs.cosmic-edit;
+      cosmic-files = cosmicPkgs.cosmic-files;
+      cosmic-greeter = cosmicPkgs.cosmic-greeter;
+      cosmic-icons = cosmicPkgs.cosmic-icons;
+      cosmic-idle = cosmicPkgs.cosmic-idle;
+      cosmic-initial-setup = cosmicPkgs.cosmic-initial-setup;
+      cosmic-launcher = cosmicPkgs.cosmic-launcher;
+      cosmic-notifications = cosmicPkgs.cosmic-notifications;
+      cosmic-osd = cosmicPkgs.cosmic-osd;
+      cosmic-panel = cosmicPkgs.cosmic-panel;
+      cosmic-player = cosmicPkgs.cosmic-player;
+      cosmic-randr = cosmicPkgs.cosmic-randr;
+      cosmic-screenshot = cosmicPkgs.cosmic-screenshot;
+      cosmic-session = cosmicPkgs.cosmic-session;
+      cosmic-settings = cosmicPkgs.cosmic-settings;
+      cosmic-settings-daemon = cosmicPkgs.cosmic-settings-daemon;
+      cosmic-store = cosmicPkgs.cosmic-store;
+      cosmic-term = cosmicPkgs.cosmic-term;
+      cosmic-wallpapers = cosmicPkgs.cosmic-wallpapers;
+      cosmic-workspaces-epoch = cosmicPkgs.cosmic-workspaces-epoch;
+      pop-launcher = cosmicPkgs.pop-launcher;
+      xdg-desktop-portal-cosmic = cosmicPkgs.xdg-desktop-portal-cosmic;
+    })
+
     (final: prev: {
       libfprint = prev.libfprint.overrideAttrs (oldAttrs: {
         version = "git";
@@ -182,6 +231,21 @@ in
   services.fprintd.enable = true;
   services.ratbagd.enable = true;
   services.lact.enable = true;
+  services.system76-scheduler.enable = true;
+
+  systemd.services.flatpak-repo = {
+    description = "Configurar Flathub globalmente";
+    wantedBy = [ "multi-user.target" ];
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+    path = [ pkgs.flatpak ];
+    serviceConfig = {
+      Type = "oneshot";
+    };
+    script = ''
+      flatpak remote-add --if-not-exists --system flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+    '';
+  };
 
   virtualisation.libvirtd = {
     enable = true;
@@ -191,6 +255,44 @@ in
   virtualisation.spiceUSBRedirection.enable = true;
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+  programs.nix-ld = {
+    enable = true;
+    libraries = with pkgs; [
+      stdenv.cc.cc
+      zlib
+      openssl
+      curl
+      glib
+      dbus
+      gtk2
+      gtk3
+      pango
+      cairo
+      atk
+      gdk-pixbuf
+      fontconfig
+      freetype
+      libGL
+      wayland
+      libxxf86vm
+      libxkbcommon
+      xorg.libX11
+      xorg.libXext
+      xorg.libXrender
+      xorg.libXtst
+      xorg.libXi
+      xorg.libXrandr
+      xorg.libXcursor
+      xorg.libXinerama
+      xorg.libxcb
+      xorg.libXcomposite
+      xorg.libXdamage
+      xorg.libXfixes
+      xorg.libSM
+      xorg.libICE
+    ];
+  };
 
   nix.gc = {
     automatic = true;
@@ -311,7 +413,7 @@ EOF
       Type = "oneshot";
     };
     script = ''
-      stamp="$HOME/.local/state/diesel-os-lab/dconf-restored"
+      stamp="$HOME/.local/state/diesel-os-cosmic-lab/dconf-restored"
 
       if [ -e "$stamp" ]; then
         exit 0
@@ -334,13 +436,15 @@ EOF
     pciutils
     usbutils
     mesa-demos
+    flatpak
 
     gnome-tweaks
     gnome-software
 
+    brave
     bitwarden-desktop
     onlyoffice-desktopeditors
-    warehouse
+    freefilesyncDonation
 
     mangohud
     goverlay
