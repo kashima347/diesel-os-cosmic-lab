@@ -3,11 +3,10 @@
 let
   systemName = builtins.currentSystem;
 
-  dieselRepo = /mnt/vmstore/projetos/diesel-os-cosmic-lab;
-  dieselLogo = dieselRepo + /assets/branding/logo/diesel-os-lab-icon.png;
-  dieselSplash = dieselRepo + /assets/branding/splash/splash.png;
-  dieselAvatar = dieselRepo + /assets/branding/avatar/avatar.png;
-  dieselWallpaper = dieselRepo + /assets/branding/wallpaper/MoccaWall.png;
+  dieselLogo = ./assets/branding/logo/diesel-os-lab-icon.png;
+  dieselSplash = ./assets/branding/splash/splash.png;
+  dieselAvatar = ./assets/branding/avatar/avatar.png;
+  dieselWallpaper = ./assets/branding/wallpaper/MoccaWall.png;
 
   cosmicPkgs = import (builtins.fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz";
@@ -101,9 +100,9 @@ in
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/branding/mocca-edition.nix
-    ../../modules/users/hal-cosmic-state.nix
-    ../../modules/users/hal-gnome-fallback.nix
+    ./modules/branding/mocca-edition.nix
+    ./modules/users/hal-cosmic-state.nix
+    ./modules/users/hal-gnome-fallback.nix
   ];
 
   nixpkgs.pkgs = basePkgs;
@@ -132,6 +131,8 @@ in
     "udev.log_level=3"
     "systemd.show_status=auto"
     "nvidia-drm.modeset=1"
+    "nvidia.NVreg_PreserveVideoMemoryAllocations=1"
+    "nvidia.NVreg_TemporaryFilePath=/var/tmp"
   ];
 
   boot.kernel.sysctl = {
@@ -206,7 +207,7 @@ in
     open = false;
     gsp.enable = false;
     nvidiaSettings = false;
-    powerManagement.enable = false;
+    powerManagement.enable = true;
     package = config.boot.kernelPackages.nvidiaPackages.mkDriver {
       version = "590.48.01";
       sha256_64bit = "sha256-ueL4BpN4FDHMh/TNKRCeEz3Oy1ClDWto1LO/LWlr1ok=";
