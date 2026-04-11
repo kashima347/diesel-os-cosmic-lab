@@ -4,13 +4,10 @@ let
   systemName = builtins.currentSystem;
 
   dieselRepo = /mnt/vmstore/projetos/diesel-os-cosmic-lab;
-  dieselPrettyName = "Diesel OS Lab — Technology & Gaming Platform";
   dieselLogo = dieselRepo + /assets/branding/logo/diesel-os-lab-icon.png;
   dieselSplash = dieselRepo + /assets/branding/splash/splash.png;
   dieselAvatar = dieselRepo + /assets/branding/avatar/avatar.png;
   dieselWallpaper = dieselRepo + /assets/branding/wallpaper/MoccaWall.png;
-  dieselDconfBackup = "${toString dieselRepo}/nixos-machines/diesel-os-cosmic-lab/dconf-backup.ini";
-  dieselHasDconfBackup = builtins.pathExists dieselDconfBackup;
 
   cosmicPkgs = import (builtins.fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz";
@@ -108,6 +105,9 @@ in
 {
   imports = [
     ./hardware-configuration.nix
+    ../../modules/branding/mocca-edition.nix
+    ../../modules/users/hal-cosmic-state.nix
+    ../../modules/users/hal-gnome-fallback.nix
   ];
 
   nixpkgs.pkgs = basePkgs;
@@ -261,28 +261,6 @@ in
     X-GNOME-Autostart-enabled=false
   '';
 
-  environment.etc."os-release".source = lib.mkForce (basePkgs.writeText "diesel-os-release" ''
-    ANSI_COLOR="0;38;2;126;186;228"
-    BUG_REPORT_URL="https://github.com/NixOS/nixpkgs/issues"
-    BUILD_ID="${config.system.nixos.version}"
-    CPE_NAME="cpe:/o:nixos:nixos:${config.system.nixos.release}"
-    DEFAULT_HOSTNAME=nixos
-    DOCUMENTATION_URL="https://nixos.org/learn.html"
-    HOME_URL="https://nixos.org/"
-    ID=nixos
-    ID_LIKE=""
-    IMAGE_ID=""
-    IMAGE_VERSION=""
-    LOGO="diesel-os-lab"
-    NAME="Diesel OS Lab"
-    PRETTY_NAME="${dieselPrettyName}"
-    SUPPORT_URL="https://nixos.org/community.html"
-    VENDOR_NAME="Diesel OS Lab"
-    VENDOR_URL="https://nixos.org/"
-    VERSION="${config.system.nixos.release}"
-    VERSION_ID="${config.system.nixos.release}"
-  '');
-
   virtualisation.libvirtd = {
     enable = true;
     qemu.swtpm.enable = true;
@@ -424,22 +402,6 @@ in
     }
   ];
 
-  system.activationScripts.dieselHalAvatar = ''
-    mkdir -p /var/lib/AccountsService/icons
-    mkdir -p /var/lib/AccountsService/users
-
-    cp ${dieselBrandingAssets}/share/diesel-os-lab/avatar.png /var/lib/AccountsService/icons/hal
-
-    cat > /var/lib/AccountsService/users/hal <<EOF
-[User]
-Icon=/var/lib/AccountsService/icons/hal
-SystemAccount=false
-EOF
-
-    chmod 644 /var/lib/AccountsService/icons/hal
-    chmod 644 /var/lib/AccountsService/users/hal
-  '';
-
   system.activationScripts.dieselHalDisableIbusAutostart = ''
     mkdir -p /home/hal/.config/autostart
     mkdir -p /home/hal/.config/systemd/user
@@ -459,27 +421,6 @@ EOF
     chown -R hal:users /home/hal/.config/autostart /home/hal/.config/systemd/user
     chown -h hal:users '/home/hal/.config/systemd/user/app-ibus\x2ddaemon@autostart.service'
   '';
-
-  systemd.user.services.diesel-dconf-restore = lib.mkIf dieselHasDconfBackup {
-    description = "Diesel OS Lab first login dconf restore";
-    wantedBy = [ "graphical-session.target" ];
-    after = [ "graphical-session-pre.target" ];
-    path = [ basePkgs.dconf basePkgs.coreutils basePkgs.bash ];
-    serviceConfig = {
-      Type = "oneshot";
-    };
-    script = ''
-      stamp="$HOME/.local/state/diesel-os-cosmic-lab/dconf-restored"
-
-      if [ -e "$stamp" ]; then
-        exit 0
-      fi
-
-      mkdir -p "$(dirname "$stamp")"
-      dconf load / < "${dieselDconfBackup}"
-      touch "$stamp"
-    '';
-  };
 
   environment.systemPackages = with basePkgs; [
     git

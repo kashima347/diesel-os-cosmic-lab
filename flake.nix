@@ -27,6 +27,17 @@
             ./hosts/diesel-os-cosmic-lab/configuration.nix
           ];
         };
+
+        iso = nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit inputs; };
+          modules = [
+            ./hosts/iso/default.nix
+          ];
+        };
       };
+
+      packages.${system}.iso =
+        self.nixosConfigurations.iso.config.system.build.isoImage;
     };
 }
