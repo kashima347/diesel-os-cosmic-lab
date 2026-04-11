@@ -11,7 +11,6 @@ let
 
   cosmicPkgs = import (builtins.fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz";
-    sha256 = "0p22chwcyksj099af40210i299jvmp33757qmm1nfma872k8pwmw";
   }) {
     system = systemName;
     config = {
@@ -22,7 +21,6 @@ let
 
   basePkgs = import (builtins.fetchTarball {
     url = "https://channels.nixos.org/nixos-25.11/nixexprs.tar.xz";
-    sha256 = "1lcfhmnw6x6pm823s39fra8cy51q16inl6izh510pdd2yyaabf5g";
   }) {
     system = systemName;
     config = {
@@ -99,8 +97,6 @@ let
 
     cp ${dieselLogo} $out/share/icons/hicolor/512x512/apps/diesel-os-lab.png
   '';
-
-  freefilesyncDonation = basePkgs.callPackage /home/hal/freefilesync-donation { };
 in
 {
   imports = [
@@ -443,7 +439,6 @@ EOF
     brave
     bitwarden-desktop
     onlyoffice-desktopeditors
-    freefilesyncDonation
     bottles
 
     mangohud

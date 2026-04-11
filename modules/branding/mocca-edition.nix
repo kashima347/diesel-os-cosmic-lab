@@ -35,7 +35,7 @@ in
     mkdir -p /var/lib/AccountsService/icons
     mkdir -p /var/lib/AccountsService/users
 
-    cp /etc/diesel-os-cosmic-lab/avatar.png /var/lib/AccountsService/icons/hal
+    cp ${avatar} /var/lib/AccountsService/icons/hal
 
     cat > /var/lib/AccountsService/users/hal <<EOF
     [User]
